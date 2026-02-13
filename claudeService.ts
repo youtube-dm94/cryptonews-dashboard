@@ -1,7 +1,5 @@
 import { LanguageCode, LanguageNames, NewsItem } from "./types";
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-
 // Claude API response types
 interface ContentBlock {
   type: "text" | "tool_use" | "tool_result";
@@ -40,12 +38,12 @@ ${targetDate} 날짜 기준으로 ${languageName} 언어를 사용하는 국가�
 기사를 찾지 못했다면 빈 배열 [] 만 반환해줘.`;
 
   try {
-    // Vite 프록시를 통해 호출 → CORS 오류 방지
-    const response = await fetch("/api/anthropic/v1/messages", {
+    // Vercel 배포 환경에서는 /api/claude 호출
+    const endpoint = "/api/claude";
+
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY || "",
-        "anthropic-version": "2023-06-01",
         "content-type": "application/json",
       },
       body: JSON.stringify({
@@ -72,7 +70,6 @@ ${targetDate} 날짜 기준으로 ${languageName} 언어를 사용하는 국가�
 
     const data: ApiResponse = await response.json();
 
-    // Extract the final text response from content blocks
     const textBlock = data.content
       .filter((block) => block.type === "text")
       .map((block) => block.text || "")
@@ -82,13 +79,11 @@ ${targetDate} 날짜 기준으로 ${languageName} 언어를 사용하는 국가�
       return [];
     }
 
-    // Parse JSON from response (strip markdown code fences if present)
     const cleaned = textBlock
       .replace(/```json\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
 
-    // Find JSON array in the response
     const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       console.warn(`No JSON array found for ${language}`);
