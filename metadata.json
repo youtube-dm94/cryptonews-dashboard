@@ -1,0 +1,6 @@
+
+{
+  "name": "CryptoNews CS Dashboard",
+  "description": "A comprehensive crypto news monitoring tool designed for exchange CS departments, providing real-time translated news across 11 supported languages including Russian, Chinese, Japanese, Korean, and more.",
+  "requestFramePermissions": []
+}
