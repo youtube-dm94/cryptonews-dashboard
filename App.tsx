@@ -51,7 +51,7 @@ const App: React.FC = () => {
       
       // 마지막 언어가 아니면 2초 대기 (Rate limit 방지)
       if (i < languages.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
 
