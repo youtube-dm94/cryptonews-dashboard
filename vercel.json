@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/claude.ts": {
-      "runtime": "nodejs20.x"
-    }
-  }
-}
