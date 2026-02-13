@@ -31,6 +31,40 @@ const App: React.FC = () => {
     return dates;
   }, []);
 
+  // LocalStorage에서 뉴스 불러오기
+  const loadNewsFromStorage = useCallback((date: string) => {
+    try {
+      const stored = localStorage.getItem(`news-${date}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setState(prev => ({
+          ...prev,
+          items: parsed.items,
+          lastUpdated: parsed.lastUpdated,
+          selectedDate: date,
+        }));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to load from storage:', error);
+      return false;
+    }
+  }, []);
+
+  // LocalStorage에 뉴스 저장
+  const saveNewsToStorage = useCallback((date: string, items: NewsItem[], lastUpdated: string) => {
+    try {
+      localStorage.setItem(`news-${date}`, JSON.stringify({
+        items,
+        lastUpdated,
+        date,
+      }));
+    } catch (error) {
+      console.error('Failed to save to storage:', error);
+    }
+  }, []);
+
   const fetchAllNewsForDate = useCallback(async (date: string) => {
     setIsRefreshing(true);
     setState(prev => ({ ...prev, isLoading: true, selectedDate: date }));
@@ -63,22 +97,43 @@ const App: React.FC = () => {
       }
     }
 
+    const timestamp = new Date().toLocaleTimeString();
+    
     setState(prev => ({
       ...prev,
       items: allFetchedNews,
       isLoading: false,
-      lastUpdated: new Date().toLocaleTimeString(),
+      lastUpdated: timestamp,
     }));
+    
+    // LocalStorage에 저장
+    saveNewsToStorage(date, allFetchedNews, timestamp);
+    
     setIsRefreshing(false);
-  }, [selectedLanguages, apiProvider]);
+  }, [selectedLanguages, apiProvider, saveNewsToStorage]);
 
+  // useEffect 제거 - Manual Sync만으로 수집
+
+  // 페이지 로드 시 오늘 날짜 데이터만 LocalStorage에서 불러오기
   useEffect(() => {
-    fetchAllNewsForDate(state.selectedDate);
-  }, [fetchAllNewsForDate, state.selectedDate]);
+    loadNewsFromStorage(state.selectedDate);
+  }, []);
 
   const handleDateSelect = (date: string) => {
     setSidebarOpen(false);
-    setState(prev => ({ ...prev, selectedDate: date }));
+    
+    // LocalStorage에서 먼저 불러오기
+    const loaded = loadNewsFromStorage(date);
+    
+    // 저장된 데이터가 없으면 빈 상태로 설정
+    if (!loaded) {
+      setState(prev => ({
+        ...prev,
+        items: [],
+        selectedDate: date,
+        lastUpdated: null,
+      }));
+    }
   };
 
   const toggleLanguageSelection = (lang: LanguageCode) => {
