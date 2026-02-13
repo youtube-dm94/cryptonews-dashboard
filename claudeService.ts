@@ -1,6 +1,5 @@
 import { LanguageCode, LanguageNames, NewsItem } from "./types";
 
-// Claude API response types
 interface ContentBlock {
   type: "text" | "tool_use" | "tool_result";
   text?: string;
@@ -38,10 +37,7 @@ ${targetDate} 날짜 기준으로 ${languageName} 언어를 사용하는 국가�
 기사를 찾지 못했다면 빈 배열 [] 만 반환해줘.`;
 
   try {
-    // Vercel 배포 환경에서는 /api/claude 호출
-    const endpoint = "/api/claude";
-
-    const response = await fetch(endpoint, {
+    const response = await fetch("/api/claude", {
       method: "POST",
       headers: {
         "content-type": "application/json",
