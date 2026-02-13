@@ -15,6 +15,9 @@ const App: React.FC = () => {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedLanguages, setSelectedLanguages] = useState<Set<LanguageCode>>(
+    new Set(Object.values(LanguageCode))
+  );
 
   const availableDates = useMemo(() => {
     const dates = [];
@@ -30,7 +33,7 @@ const App: React.FC = () => {
     setIsRefreshing(true);
     setState(prev => ({ ...prev, isLoading: true, selectedDate: date }));
     
-    const languages = Object.values(LanguageCode);
+    const languages = Array.from(selectedLanguages);
     const allFetchedNews: NewsItem[] = [];
     
     for (let i = 0; i < languages.length; i++) {
@@ -51,7 +54,7 @@ const App: React.FC = () => {
       
       // 마지막 언어가 아니면 2초 대기 (Rate limit 방지)
       if (i < languages.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
@@ -62,7 +65,7 @@ const App: React.FC = () => {
       lastUpdated: new Date().toLocaleTimeString(),
     }));
     setIsRefreshing(false);
-  }, []);
+  }, [selectedLanguages]);
 
   useEffect(() => {
     fetchAllNewsForDate(state.selectedDate);
@@ -71,6 +74,26 @@ const App: React.FC = () => {
   const handleDateSelect = (date: string) => {
     setSidebarOpen(false);
     setState(prev => ({ ...prev, selectedDate: date }));
+  };
+
+  const toggleLanguageSelection = (lang: LanguageCode) => {
+    setSelectedLanguages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(lang)) {
+        newSet.delete(lang);
+      } else {
+        newSet.add(lang);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllLanguages = () => {
+    setSelectedLanguages(new Set(Object.values(LanguageCode)));
+  };
+
+  const deselectAllLanguages = () => {
+    setSelectedLanguages(new Set());
   };
 
   const groupedItems = useMemo(() => {
@@ -138,19 +161,63 @@ const App: React.FC = () => {
                 })}
               </div>
             </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-4 px-2">
+                <h2 className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Select Languages</h2>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={selectAllLanguages}
+                    className="text-[9px] text-blue-400 hover:text-blue-300"
+                  >
+                    All
+                  </button>
+                  <span className="text-slate-600">|</span>
+                  <button 
+                    onClick={deselectAllLanguages}
+                    className="text-[9px] text-slate-500 hover:text-slate-400"
+                  >
+                    None
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                {Object.values(LanguageCode).map(lang => (
+                  <button
+                    key={lang}
+                    onClick={() => toggleLanguageSelection(lang)}
+                    className={`w-full text-left px-3 py-2 rounded-md text-xs transition-all flex items-center justify-between ${
+                      selectedLanguages.has(lang)
+                        ? 'bg-slate-800 text-white border border-blue-500/30' 
+                        : 'text-slate-500 hover:bg-slate-800/50 hover:text-slate-400'
+                    }`}
+                  >
+                    <span className="font-mono">{lang}</span>
+                    {selectedLanguages.has(lang) && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
           </nav>
 
           <div className="mt-auto pt-6 border-t border-slate-800">
             <button 
               onClick={() => fetchAllNewsForDate(state.selectedDate)}
-              disabled={isRefreshing}
+              disabled={isRefreshing || selectedLanguages.size === 0}
               className="w-full py-2 bg-slate-800 border border-slate-700 rounded text-[11px] font-bold text-slate-300 hover:bg-slate-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Manual Sync
+              Manual Sync {selectedLanguages.size > 0 && `(${selectedLanguages.size})`}
             </button>
+            {selectedLanguages.size === 0 && (
+              <p className="text-[9px] text-yellow-500 text-center mt-2">Select at least one language</p>
+            )}
           </div>
         </div>
       </aside>
@@ -215,7 +282,7 @@ const App: React.FC = () => {
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-slate-400 text-sm font-medium">Claude AI가 글로벌 뉴스를 수집 중입니다...</p>
-                <p className="text-slate-600 text-xs mt-2">{state.selectedDate} 기준 11개 언어 검색 중</p>
+                <p className="text-slate-600 text-xs mt-2">{state.selectedDate} 기준 {selectedLanguages.size}개 언어 검색 중</p>
               </div>
             ) : Object.keys(groupedItems).length === 0 ? (
               <div className="bg-slate-900/30 border border-slate-800 rounded-lg py-12 px-6 text-center">
