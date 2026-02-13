@@ -33,14 +33,26 @@ const App: React.FC = () => {
     const languages = Object.values(LanguageCode);
     const allFetchedNews: NewsItem[] = [];
     
-    for (const lang of languages) {
-      const news = await fetchCryptoNewsForLanguage(lang, date);
-      allFetchedNews.push(...news);
-      // 각 언어 수집 후 UI 즉시 업데이트 (진행 상황 표시)
-      setState(prev => ({
-        ...prev,
-        items: [...allFetchedNews],
-      }));
+    for (let i = 0; i < languages.length; i++) {
+      const lang = languages[i];
+      
+      try {
+        const news = await fetchCryptoNewsForLanguage(lang, date);
+        allFetchedNews.push(...news);
+        
+        // 각 언어 수집 후 UI 즉시 업데이트 (진행 상황 표시)
+        setState(prev => ({
+          ...prev,
+          items: [...allFetchedNews],
+        }));
+      } catch (error) {
+        console.error(`Failed to fetch news for ${lang}:`, error);
+      }
+      
+      // 마지막 언어가 아니면 2초 대기 (Rate limit 방지)
+      if (i < languages.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
 
     setState(prev => ({
