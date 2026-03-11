@@ -13,11 +13,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const baseUrl = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com/v1/messages";
+    const response = await fetch(baseUrl, {
       method: "POST",
       headers: {
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "web-search-2025-03-05",
         "content-type": "application/json",
       },
       body: JSON.stringify(req.body),
