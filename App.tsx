@@ -3,6 +3,7 @@ import { LanguageCode, LanguageNames, NewsItem, NewsState } from './types';
 import * as claudeService from './claudeService';
 import { NewsCard } from './components/NewsCard';
 import { LanguageBadge } from './components/LanguageBadge';
+import { supabase } from './supabaseClient';
 
 const App: React.FC = () => {
   const [state, setState] = useState<NewsState>({
@@ -29,37 +30,56 @@ const App: React.FC = () => {
     return dates;
   }, []);
 
-  // LocalStorage에서 뉴스 불러오기
-  const loadNewsFromStorage = useCallback((date: string) => {
+  // Supabase에서 뉴스 불러오기
+  const loadNewsFromStorage = useCallback(async (date: string) => {
     try {
-      const stored = localStorage.getItem(`news-${date}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setState(prev => ({
-          ...prev,
-          items: parsed.items,
-          lastUpdated: parsed.lastUpdated,
-          selectedDate: date,
-        }));
-        return true;
-      }
-      return false;
+      const { data, error } = await supabase
+        .from('news_items')
+        .select('*')
+        .eq('date', date);
+
+      if (error || !data || data.length === 0) return false;
+
+      const items: NewsItem[] = data.map(row => ({
+        id: row.id,
+        date: row.date,
+        language: row.language as LanguageCode,
+        headlineOriginal: row.headline_original,
+        headlineEnglish: row.headline_english,
+        link: row.link,
+        source: row.source,
+      }));
+
+      setState(prev => ({
+        ...prev,
+        items,
+        lastUpdated: null,
+        selectedDate: date,
+      }));
+      return true;
     } catch (error) {
-      console.error('Failed to load from storage:', error);
+      console.error('Failed to load from Supabase:', error);
       return false;
     }
   }, []);
 
-  // LocalStorage에 뉴스 저장
-  const saveNewsToStorage = useCallback((date: string, items: NewsItem[], lastUpdated: string) => {
+  // Supabase에 뉴스 저장
+  const saveNewsToStorage = useCallback(async (date: string, items: NewsItem[]) => {
     try {
-      localStorage.setItem(`news-${date}`, JSON.stringify({
-        items,
-        lastUpdated,
-        date,
+      const rows = items.map(item => ({
+        id: item.id,
+        date: item.date,
+        language: item.language,
+        headline_original: item.headlineOriginal,
+        headline_english: item.headlineEnglish,
+        link: item.link,
+        source: item.source,
       }));
+
+      const { error } = await supabase.from('news_items').upsert(rows);
+      if (error) console.error('Failed to save to Supabase:', error);
     } catch (error) {
-      console.error('Failed to save to storage:', error);
+      console.error('Failed to save to Supabase:', error);
     }
   }, []);
 
@@ -92,42 +112,33 @@ const App: React.FC = () => {
     }
 
     const timestamp = new Date().toLocaleTimeString();
-    
+
     setState(prev => ({
       ...prev,
       items: allFetchedNews,
       isLoading: false,
       lastUpdated: timestamp,
     }));
-    
-    // LocalStorage에 저장
-    saveNewsToStorage(date, allFetchedNews, timestamp);
+
+    // Supabase에 저장
+    await saveNewsToStorage(date, allFetchedNews);
     
     setIsRefreshing(false);
   }, [selectedLanguages, saveNewsToStorage]);
 
   // useEffect 제거 - Manual Sync만으로 수집
 
-  // 페이지 로드 시 오늘 날짜 데이터만 LocalStorage에서 불러오기
+  // 페이지 로드 시 오늘 날짜 데이터 Supabase에서 불러오기
   useEffect(() => {
     loadNewsFromStorage(state.selectedDate);
   }, []);
 
-  const handleDateSelect = (date: string) => {
+  const handleDateSelect = async (date: string) => {
     setSidebarOpen(false);
-    
-    // LocalStorage에서 먼저 불러오기
-    const loaded = loadNewsFromStorage(date);
-    
-    // 저장된 데이터가 없으면 빈 상태로 설정
-    if (!loaded) {
-      setState(prev => ({
-        ...prev,
-        items: [],
-        selectedDate: date,
-        lastUpdated: null,
-      }));
-    }
+    setState(prev => ({ ...prev, items: [], selectedDate: date, lastUpdated: null }));
+
+    // Supabase에서 먼저 불러오기
+    await loadNewsFromStorage(date);
   };
 
   const toggleLanguageSelection = (lang: LanguageCode) => {
