@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LanguageCode, LanguageNames, NewsItem, NewsState } from './types';
 import * as claudeService from './claudeService';
-import * as geminiService from './geminiService';
 import { NewsCard } from './components/NewsCard';
 import { LanguageBadge } from './components/LanguageBadge';
 
@@ -19,7 +18,6 @@ const App: React.FC = () => {
   const [selectedLanguages, setSelectedLanguages] = useState<Set<LanguageCode>>(
     new Set(Object.values(LanguageCode))
   );
-  const [apiProvider, setApiProvider] = useState<'claude' | 'gemini'>('gemini');
 
   const availableDates = useMemo(() => {
     const dates = [];
@@ -72,14 +70,11 @@ const App: React.FC = () => {
     const languages = Array.from(selectedLanguages);
     const allFetchedNews: NewsItem[] = [];
     
-    // 선택된 API 서비스
-    const service = apiProvider === 'claude' ? claudeService : geminiService;
-    
     for (let i = 0; i < languages.length; i++) {
       const lang = languages[i];
-      
+
       try {
-        const news = await service.fetchCryptoNewsForLanguage(lang, date);
+        const news = await claudeService.fetchCryptoNewsForLanguage(lang, date);
         allFetchedNews.push(...news);
         
         // 각 언어 수집 후 UI 즉시 업데이트 (진행 상황 표시)
@@ -91,8 +86,7 @@ const App: React.FC = () => {
         console.error(`Failed to fetch news for ${lang}:`, error);
       }
       
-      // Claude API만 대기 (Gemini는 무료라 Rate Limit 덜 엄격)
-      if (apiProvider === 'claude' && i < languages.length - 1) {
+      if (i < languages.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
@@ -110,7 +104,7 @@ const App: React.FC = () => {
     saveNewsToStorage(date, allFetchedNews, timestamp);
     
     setIsRefreshing(false);
-  }, [selectedLanguages, apiProvider, saveNewsToStorage]);
+  }, [selectedLanguages, saveNewsToStorage]);
 
   // useEffect 제거 - Manual Sync만으로 수집
 
@@ -265,34 +259,6 @@ const App: React.FC = () => {
           </nav>
 
           <div className="mt-auto pt-6 border-t border-slate-800 space-y-3">
-            <div>
-              <h3 className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold mb-2 px-2">AI Provider</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setApiProvider('gemini')}
-                  className={`px-3 py-2 rounded text-[10px] font-bold transition-all border ${
-                    apiProvider === 'gemini'
-                      ? 'bg-blue-600 text-white border-blue-500'
-                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600'
-                  }`}
-                >
-                  Gemini
-                  <div className="text-[8px] font-normal mt-0.5 opacity-70">Free</div>
-                </button>
-                <button
-                  onClick={() => setApiProvider('claude')}
-                  className={`px-3 py-2 rounded text-[10px] font-bold transition-all border ${
-                    apiProvider === 'claude'
-                      ? 'bg-blue-600 text-white border-blue-500'
-                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600'
-                  }`}
-                >
-                  Claude
-                  <div className="text-[8px] font-normal mt-0.5 opacity-70">Paid</div>
-                </button>
-              </div>
-            </div>
-            
             <button 
               onClick={() => fetchAllNewsForDate(state.selectedDate)}
               disabled={isRefreshing || selectedLanguages.size === 0}
@@ -324,7 +290,7 @@ const App: React.FC = () => {
               </h2>
               <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
                 <span className="text-blue-400 uppercase tracking-tighter">
-                  Powered by {apiProvider === 'claude' ? 'Claude AI' : 'Gemini AI'}
+                  Powered by Claude AI
                 </span>
                 <span>•</span>
                 <span>{state.items.length} Articles Total</span>
@@ -372,7 +338,7 @@ const App: React.FC = () => {
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-slate-400 text-sm font-medium">
-                  {apiProvider === 'claude' ? 'Claude AI' : 'Gemini AI'}가 글로벌 뉴스를 수집 중입니다...
+                  Claude AI가 글로벌 뉴스를 수집 중입니다...
                 </p>
                 <p className="text-slate-600 text-xs mt-2">{state.selectedDate} 기준 {selectedLanguages.size}개 언어 검색 중</p>
               </div>
@@ -406,7 +372,7 @@ const App: React.FC = () => {
         {/* Footer info */}
         <div className="bg-slate-900 border-t border-slate-800 px-6 py-3 shrink-0 flex justify-between items-center">
           <p className="text-[10px] text-slate-600 font-mono">
-            CS Dashboard · Powered by {apiProvider === 'claude' ? 'Claude AI' : 'Gemini AI'}
+            CS Dashboard · Powered by Claude AI
           </p>
           <p className="text-[10px] text-slate-600 font-mono italic">Last synced: {state.lastUpdated || 'Never'}</p>
         </div>
